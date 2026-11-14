@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Doce Rush Match-3</title>
+<style>
+  :root {
+    --bg-gradient: linear-gradient(135deg, #2b1055 0%, #7597de 100%);
+    --panel-bg: rgba(25, 14, 54, 0.88);
+    --accent: #ff477e;
+    --gold: #ffd166;
+    --green: #06d6a0;
+    --blue: #118ab2;
+  }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  body {
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-gradient);
+    color: #fff;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    overflow: hidden;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
+  }
+  header {
+    width: 100%;
+    max-width: 440px;
+    padding: 10px 14px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel-bg);
+    border-radius: 16px;
+    padding: 8px 12px;
+    border: 2px solid rgba(255,255,255,0.15);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  }
+  .stat-box {
+    text-align: center;
+  }
+  .stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #b8c0ff;
+  }
+  .stat-value {
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+  }
+  .stat-value.moves { color: var(--gold); }
+  .stat-value.score { color: var(--green); }
+  .icon-btn {
+    background: rgba(255,255,255,0.12);
+    border: none;
+    color: #fff;
+    border-radius: 12px;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .icon-btn:active { transform: scale(0.95); }
+  .objectives-bar {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(0,0,0,0.28);
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .obj-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  #board-wrapper {
+    position: relative;
+    width: min(92vw, 392px);
+    height: min(92vw, 392px);
+    background: rgba(18, 9, 41, 0.85);
+    border-radius: 18px;
+    padding: 6px;
+    border: 3px solid rgba(255,255,255,0.2);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+    touch-action: none;
+  }
+  #board {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: 3px;
+  }
+  .cell {
+    position: relative;
+    background: rgba(255,255,255,0.06);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cell.ice-1 {
+    background: rgba(130, 224, 255, 0.35);
+    box-shadow: inset 0 0 8px #82e0ff;
+    border: 1.5px solid #a8ebff;
+  }
+  .cell.ice-2 {
+    background: rgba(72, 180, 255, 0.58);
+    box-shadow: inset 0 0 12px #ffffff;
+    border: 2px solid #ffffff;
+  }
+  .cell.drop-zone::after {
+    content: '⬇';
+    position: absolute;
+    bottom: -2px;
+    font-size: 10px;
+    color: var(--green);
+    opacity: 0.85;
+  }
+  .tile {
+    width: 88%;
+    height: 88%;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .tile svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,0.35));
+  }
+  .tile.booster-pulse {
+    animation: pulse 1.2s infinite ease-in-out;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+  }
+  #fx-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .bottom-tools {
+    width: 100%;
+    max-width: 440px;
+    padding: 6px 14px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+  .tool-btn {
+    flex: 1;
+    background: var(--panel-bg);
+    border: 2px solid rgba(255,255,255,0.18);
+    border-radius: 14px;
+    padding: 8px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .tool-btn.active {
+    border-color: var(--gold);
+    background: rgba(255, 209, 102, 0.22);
+  }
+  .badge {
+    background: var(--accent);
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 11px;
+  }
+  /* Banner Simulado (quando no navegador) */
+  #web-ad-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: #111827;
+    border-top: 1px solid #374151;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #9ca3af;
+    z-index: 50;
+  }
+  /* Modais */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 5, 28, 0.85);
+    backdrop-filter: blur(5px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 100;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-card {
+    background: linear-gradient(160deg, #24124d, #160a33);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 22px;
+    padding: 22px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+  }
+  .modal-card h2 {
+    font-size: 22px;
+    margin-bottom: 8px;
+    color: var(--gold);
+  }
+  .modal-card p {
+    font-size: 14px;
+    color: #d8dcff;
+    margin-bottom: 16px;
+    line-height: 1.4;
+  }
+  .btn-primary {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(90deg, #ff477e, #ff7096);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 15px rgba(255, 71, 126, 0.4);
+  }
+  .btn-secondary {
+    width: 100%;
+    padding: 11px;
+    border: 1.5px solid rgba(255,255,255,0.25);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+  .mission-row {
+    background: rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 10px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+    font-size: 13px;
+  }
+  .booster-pick-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .pick-card {
+    background: rgba(255,255,255,0.08);
+    border: 2px solid transparent;
+    border-radius: 12px;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .pick-card.selected {
+    border-color: var(--green);
+    background: rgba(6, 214, 160, 0.2);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top-bar">
+    <button class="icon-btn" onclick="openMenu()">🏠 Menu</button>
+    <div class="stat-box">
+      <div class="stat-label">Nível</div>
+      <div class="stat-value" id="ui-level">1</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Jogadas</div>
+      <div class="stat-value moves" id="ui-moves">25</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Pontos</div>
+      <div class="stat-value score" id="ui-score">0</div>
+    </div>
+    <button class="icon-btn" onclick="openMissions()">🎯 Missões</button>
+  </div>
+  <div class="objectives-bar" id="ui-objectives">
+    <div class="obj-item">🎯 Meta: <span id="obj-score">1500</span> pts</div>
+  </div>
+</header>
+
+<div id="board-wrapper">
+  <div id="board"></div>
+  <canvas id="fx-canvas"></canvas>
+</div>
+
+<div class="bottom-tools">
+  <button class="tool-btn" id="btn-hammer" onclick="toggleHammer()">
+    🔨 Martelo <span class="badge" id="count-hammer">2</span>
+  </button>
+  <button class="tool-btn" onclick="shuffleBoard()">
+    🔀 Embaralhar <span class="badge" id="count-shuffle">2</span>
+  </button>
+</div>
+
+<!-- Banner AdMob Simulado para Web -->
+<div id="web-ad-banner">
+  📢 Espaço Banner AdMob (320x50) • Ativo no Android & iOS
+</div>
+
+<!-- Modal Menu Principal -->
+<div class="modal-overlay open" id="modal-menu">
+  <div class="modal-card">
+    <h2>🍬 Doce Rush</h2>
+    <p>Combine doces, crie boosters especiais, quebre gelos e colete cerejas douradas!</p>
+    <button class="btn-primary" onclick="openPreGame()">▶ Jogar Nível <span id="menu-lvl">1</span></button>
+    <button class="btn-secondary" onclick="openMissions()">🎯 Missões Diárias</button>
+  </div>
+</div>
+
+<!-- Modal Seleção Pré-Jogo -->
+<div class="modal-overlay" id="modal-pregame">
+  <div class="modal-card">
+    <h2>🚀 Preparar Partida</h2>
+    <p>Escolha 1 booster da sua mochila para começar já no tabuleiro:</p>
+    <div class="booster-pick-grid" id="pregame-list"></div>
+    <button class="btn-primary" onclick="startSelectedLevel()">Começar Agora!</button>
+    <button class="btn-secondary" onclick="closeModals()">Voltar</button>
+  </div>
+</div>
+
+<!-- Modal Missões Diárias -->
+<div class="modal-overlay" id="modal-missions">
+  <div class="modal-card">
+    <h2>🎯 Missões Diárias</h2>
+    <p>Complete desafios para ganhar boosters grátis!</p>
+    <div id="missions-list"></div>
+    <button class="btn-secondary" onclick="closeModals()">Fechar</button>
+  </div>
+</div>
+
+<!-- Modal Fim de Nível (Vitória / Derrota) -->
+<div class="modal-overlay" id="modal-end">
+  <div class="modal-card">
+    <h2 id="end-title">Nível Concluído!</h2>
+    <p id="end-desc">Você atingiu o objetivo!</p>
+    <button class="btn-primary" id="end-primary-btn">Próximo Nível</button>
+    <button class="btn-secondary" id="end-ad-btn" style="display:none;">🎬 Ver Vídeo (+5 Jogadas)</button>
+    <button class="btn-secondary" onclick="openMenu()">Menu Principal</button>
+  </div>
+</div>
+
+<!-- Modal Simulador de Anúncio Web -->
+<div class="modal-overlay" id="modal-ad-sim">
+  <div class="modal-card">
+    <h2>🎬 Anúncio Patrocinado</h2>
+    <p id="ad-sim-text">Aguarde o término do anúncio para liberar sua recompensa...</p>
+    <div style="font-size:28px;font-weight:800;color:var(--gold);margin:12px 0;" id="ad-timer">3</div>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   1. CONFIGURAÇÃO DE ANÚNCIOS REAIS (CAPACITOR + GOOGLE ADMOB)
+   Substitua os IDs de teste pelos seus IDs reais do painel AdMob antes de publicar!
+   ========================================================================== */
+const ADMOB_CONFIG = {
+  // IDs OFICIAIS DE TESTE DO GOOGLE (Substitua pelos seus ao publicar)
+  android: {
+    banner: 'ca-app-pub-3940256099942544/6300978111',
+    interstitial: 'ca-app-pub-3940256099942544/1033173712',
+    rewarded: 'ca-app-pub-3940256099942544/5224354917'
+  },
+  ios: {
+    banner: 'ca-app-pub-3940256099942544/2934735716',
+    interstitial: 'ca-app-pub-3940256099942544/4411468910',
+    rewarded: 'ca-app-pub-3940256099942544/1712485313'
+  },
+  isTesting: true // Mude para false na versão final de produção
+};
+
+const isNativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
+function getAdUnitId(type) {
+  const platform = (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'ios') ? 'ios' : 'android';
+  return ADMOB_CONFIG[platform][type];
+}
+
+async function initRealAdMob() {
+  if (!isNativeApp) return;
+  document.getElementById('web-ad-banner').style.display = 'none';
+  try {
+    const { AdMob, BannerAdSize, BannerAdPosition } = window.Capacitor.Plugins;
+    await AdMob.initialize({
+      requestTrackingAuthorization: true,
+      initializeForTesting: ADMOB_CONFIG.isTesting
+    });
+    await AdMob.showBanner({
+      adId: getAdUnitId('banner'),
+      adSize: BannerAdSize.ADAPTIVE_BANNER,
+      position: BannerAdPosition.BOTTOM_CENTER,
+      margin: 0
+    });
+  } catch (err) {
+    console.warn('AdMob init fallback:', err);
+  }
+}
+
+async function triggerInterstitialAd(callback) {
+  if (isNativeApp) {
+    try {
+      const { AdMob } = window.Capacitor.Plugins;
+      await AdMob.prepareInterstitial({ adId: getAdUnitId('interstitial'), isTesting: ADMOB_CONFIG.isTesting });
+      await AdMob.showInterstitial();
+      if (callback) callback();
+      return;
+    } catch (e) {
+      console.warn('Interstitial erro:', e);
+    }
+  }
+  // Simulação no navegador
+  runWebAdSimulation('Carregando próximo nível...', 2, callback);
+}
+
+async function triggerRewardedAd(onReward) {
+  if (isNativeApp) {
+    try {
+      const { AdMob } = window.Capacitor.Plugins;
+      await AdMob.prepareRewardVideoAd({ adId: getAdUnitId('rewarded'), isTesting: ADMOB_CONFIG.isTesting });
+      const reward = await AdMob.showRewardVideoAd();
+      if (reward && onReward) onReward();
+      return;
+    } catch (e) {
+      alert('Nenhum vídeo disponível agora. Tente novamente em instantes.');
+      return;
+    }
+  }
+  // Simulação no navegador
+  runWebAdSimulation('Assistindo vídeo premiado...', 3, onReward);
+}
+
+function runWebAdSimulation(text, seconds, done) {
+  const modal = document.getElementById('modal-ad-sim');
+  const timerEl = document.getElementById('ad-timer');
+  document.getElementById('ad-sim-text').textContent = text;
+  let left = seconds;
+  timerEl.textContent = left;
+  modal.classList.add('open');
+  const iv = setInterval(() => {
+    left--;
+    timerEl.textContent = left;
+    if (left <= 0) {
+      clearInterval(iv);
+      modal.classList.remove('open');
+      if (done) done();
+    }
+  }, 1000);
+}
+
+/* ==========================================================================
+   2. ÁUDIO SINTETIZADO (WEB AUDIO API)
+   ========================================================================== */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playTone(freq, type = 'sine', duration = 0.12, vol = 0.12) {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+/* ==========================================================================
+   3. GRÁFICOS VETORIAIS (DOCES, BOOSTERS E CEREJA DOURADA)
+   ========================================================================== */
+const COLORS = ['#ff4d6d', '#ffbe0b', '#06d6a0', '#3a86ff', '#9b5de5', '#fb5607'];
+
+function getTileSVG(tile) {
+  if (!tile) return '';
+  if (tile.special === 'cherry') {
+    return `<svg viewBox="0 0 64 64"><circle cx="24" cy="44" r="13" fill="#ffd166" stroke="#f77f00" stroke-width="3"/><circle cx="42" cy="40" r="12" fill="#fcbf49" stroke="#f77f00" stroke-width="3"/><path d="M24 31 Q32 12 46 10 Q38 22 42 28" fill="none" stroke="#06d6a0" stroke-width="4" stroke-linecap="round"/></svg>`;
+  }
+  if (tile.special === 'arrow_h') {
+    return `<svg viewBox="0 0 64 64"><rect x="6" y="14" width="52" height="36" rx="12" fill="#00f5d4"/><path d="M12 32 L24 20 L24 27 L40 27 L40 20 L52 32 L40 44 L40 37 L24 37 L24 44 Z" fill="#10002b"/></svg>`;
+  }
+  if (tile.special === 'arrow_v') {
+    return `<svg viewBox="0 0 64 64"><rect x="14" y="6" width="36" height="52" rx="12" fill="#00bbf9"/><path d="M32 12 L44 24 L37 24 L37 40 L44 40 L32 52 L20 40 L27 40 L27 24 L20 24 Z" fill="#10002b"/></svg>`;
+  }
+  if (tile.special === 'bomb') {
+    return `<svg viewBox="0 0 64 64"><circle cx="32" cy="36" r="20" fill="#2b2d42" stroke="#ff9f1c" stroke-width="3"/><path d="M32 16 Q38 8 46 10" stroke="#ffd166" stroke-width="4" fill="none"/><circle cx="48" cy="10" r="5" fill="#ff4d6d"/></svg>`;
+  }
+  if (tile.special === 'cross') {
+    return `<svg viewBox="0 0 64 64"><polygon points="32,4 40,24 60,32 40,40 32,60 24,40 4,32 24,24" fill="#ffd166" stroke="#ff4d6d" stroke-width="3"/><circle cx="32" cy="32" r="9" fill="#fff"/></svg>`;
+  }
+  if (tile.special === 'joker') {
+    return `<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="24" fill="url(#rainbow)" stroke="#fff" stroke-width="3"/><defs><linearGradient id="rainbow" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ff4d6d"/><stop offset="50%" stop-color="#ffd166"/><stop offset="100%" stop-color="#06d6a0"/></linearGradient></defs><text x="32" y="39" font-size="22" font-weight="900" text-anchor="middle" fill="#1a1a2e">★</text></svg>`;
+  }
+  const c = COLORS[tile.color];
+  const shapes = [
+    `<circle cx="32" cy="32" r="22" fill="${c}"/><circle cx="24" cy="24" r="6" fill="rgba(255,255,255,0.45)"/>`,
+    `<rect x="11" y="11" width="42" height="42" rx="12" fill="${c}"/><rect x="17" y="17" width="12" height="12" rx="4" fill="rgba(255,255,255,0.4)"/>`,
+    `<polygon points="32,8 56,32 32,56 8,32" fill="${c}"/><polygon points="32,16 44,32 32,48 20,32" fill="rgba(255,255,255,0.28)"/>`,
+    `<polygon points="32,9 55,51 9,51" fill="${c}"/><circle cx="32" cy="38" r="6" fill="rgba(255,255,255,0.35)"/>`,
+    `<polygon points="32,8 53,23 45,49 19,49 11,23" fill="${c}"/>`,
+    `<path d="M32 54 C12 40 10 22 22 15 C28 12 32 18 32 18 C32 18 36 12 42 15 C54 22 52 40 32 54 Z" fill="${c}"/>`
+  ];
+  return `<svg viewBox="0 0 64 64">${shapes[tile.color]}</svg>`;
+}
+
+/* ==========================================================================
+   4. ESTADO DO JOGO, PROGRESSO E MISSÕES DIÁRIAS
+   ========================================================================== */
+const SIZE = 8;
+let grid = [];
+let iceGrid = [];
+let level = 1;
+let score = 0;
+let moves = 25;
+let targetScore = 1500;
+let targetCherries = 0;
+let collectedCherries = 0;
+let busy = false;
+let hammerActive = false;
+let selectedPreBooster = null;
+
+const defaultSave = {
+  unlockedLevel: 1,
+  hammers: 2,
+  shuffles: 2,
+  inventory: { arrow_h: 1, bomb: 1, cross: 0, joker: 0 },
+  missionDate: new Date().toDateString(),
+  missions: [
+    { id: 'm1', desc: 'Combine 20 doces', goal: 20, progress: 0, reward: 'arrow_h', rewardName: 'Flecha', claimed: false },
+    { id: 'm2', desc: 'Use ou crie 2 boosters', goal: 2, progress: 0, reward: 'bomb', rewardName: 'Bomba 3x3', claimed: false },
+    { id: 'm3', desc: 'Faça 2.500 pontos', goal: 2500, progress: 0, reward: 'joker', rewardName: 'Coringa', claimed: false }
+  ]
+};
+
+let saveData = JSON.parse(localStorage.getItem('docerush_save')) || defaultSave;
+if (saveData.missionDate !== new Date().toDateString()) {
+  saveData.missionDate = new Date().toDateString();
+  saveData.missions.forEach(m => { m.progress = 0; m.claimed = false; });
+}
+level = saveData.unlockedLevel || 1;
+
+function persist() {
+  localStorage.setItem('docerush_save', JSON.stringify(saveData));
+  document.getElementById('count-hammer').textContent = saveData.hammers;
+  document.getElementById('count-shuffle').textContent = saveData.shuffles;
+  document.getElementById('menu-lvl').textContent = level;
+}
+
+function addMissionProgress(id, amount) {
+  const m = saveData.missions.find(x => x.id === id);
+  if (m && !m.claimed) {
+    m.progress = Math.min(m.goal, m.progress + amount);
+    persist();
+  }
+}
+
+/* ==========================================================================
+   5. PARTÍCULAS EM CANVAS
+   ========================================================================== */
+const canvas = document.getElementById('fx-canvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+
+function spawnParticles(r, c, color = '#ffd166', count = 12) {
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+  const cx = (c + 0.5) * (canvas.width / SIZE);
+  const cy = (r + 0.5) * (canvas.height / SIZE);
+  for (let i = 0; i < count; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 1.5 + Math.random() * 4;
+    particles.push({ x: cx, y: cy, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd, life: 1, color });
+  }
+}
+
+function updateParticles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles = particles.filter(p => p.life > 0);
+  for (const p of particles) {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= 0.04;
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(updateParticles);
+}
+updateParticles();
+
+/* ==========================================================================
+   6. INICIALIZAÇÃO DO TABULEIRO E OBSTÁCULOS POR FASE
+   ========================================================================== */
+function initLevel(lvl) {
+  level = lvl;
+  score = 0;
+  moves = 22 + Math.min(10, lvl * 2);
+  targetScore = 1200 + (lvl - 1) * 800;
+  targetCherries = lvl >= 3 ? Math.min(3, Math.floor((lvl - 1) / 2)) : 0;
+  collectedCherries = 0;
+  hammerActive = false;
+  document.getElementById('btn-hammer').classList.remove('active');
+
+  grid = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
+  iceGrid = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+
+  // Configurar Gelo a partir do Nível 2
+  if (lvl >= 2) {
+    const iceCount = Math.min(18, 4 + lvl * 2);
+    for (let i = 0; i < iceCount; i++) {
+      const r = 2 + Math.floor(Math.random() * 5);
+      const c = Math.floor(Math.random() * SIZE);
+      iceGrid[r][c] = (lvl >= 4 && Math.random() < 0.35) ? 2 : 1;
+    }
+  }
+
+  // Preencher doces sem combinações iniciais
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      let color;
+      do {
+        color = Math.floor(Math.random() * COLORS.length);
+      } while (
+        (c >= 2 && grid[r][c-1]?.color === color && grid[r][c-2]?.color === color) ||
+        (r >= 2 && grid[r-1][c]?.color === color && grid[r-2][c]?.color === color)
+      );
+      grid[r][c] = { color, special: null };
+    }
+  }
+
+  // Colocar Cerejas Douradas no topo se o nível exigir
+  for (let i = 0; i < targetCherries; i++) {
+    const col = Math.min(SIZE - 1, 1 + i * 3);
+    grid[0][col] = { color: -1, special: 'cherry' };
+  }
+
+  // Aplicar booster escolhido na seleção pré-jogo
+  if (selectedPreBooster && saveData.inventory[selectedPreBooster] > 0) {
+    saveData.inventory[selectedPreBooster]--;
+    const rr = 3 + Math.floor(Math.random() * 2);
+    const cc = 3 + Math.floor(Math.random() * 2);
+    grid[rr][cc] = { color: Math.floor(Math.random() * COLORS.length), special: selectedPreBooster };
+    selectedPreBooster = null;
+    persist();
+  }
+
+  renderBoard();
+  updateHUD();
+}
+
+function updateHUD() {
+  document.getElementById('ui-level').textContent = level;
+  document.getElementById('ui-moves').textContent = moves;
+  document.getElementById('ui-score').textContent = score;
+
+  const remainingIce = iceGrid.flat().filter(v => v > 0).length;
+  let objHtml = `<div class="obj-item">🎯 ${score}/${targetScore} pts</div>`;
+  if (remainingIce > 0) objHtml += `<div class="obj-item">❄️ Gelo: ${remainingIce}</div>`;
+  if (targetCherries > 0) objHtml += `<div class="obj-item">🍒 ${collectedCherries}/${targetCherries}</div>`;
+  document.getElementById('ui-objectives').innerHTML = objHtml;
+}
+
+function renderBoard() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      if (iceGrid[r][c] === 1) cell.classList.add('ice-1');
+      if (iceGrid[r][c] === 2) cell.classList.add('ice-2');
+      if (targetCherries > 0 && r === SIZE - 1) cell.classList.add('drop-zone');
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+
+      const tile = grid[r][c];
+      if (tile) {
+        const tileEl = document.createElement('div');
+        tileEl.className = 'tile';
+        if (tile.special && tile.special !== 'cherry') tileEl.classList.add('booster-pulse');
+        tileEl.innerHTML = getTileSVG(tile);
+        cell.appendChild(tileEl);
+      }
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+/* ==========================================================================
+   7. CONTROLE POR DESLIZAMENTO SUAVE (SWIPE / DRAG)
+   ========================================================================== */
+let dragStart = null;
+const boardWrapper = document.getElementById('board-wrapper');
+
+boardWrapper.addEventListener('pointerdown', (e) => {
+  if (busy) return;
+  const cell = e.target.closest('.cell');
+  if (!cell) return;
+  const r = +cell.dataset.r;
+  const c = +cell.dataset.c;
+
+  if (hammerActive) {
+    useHammerAt(r, c);
+    return;
+  }
+  dragStart = { r, c, x: e.clientX, y: e.clientY };
+});
+
+boardWrapper.addEventListener('pointermove', (e) => {
+  if (!dragStart || busy) return;
+  const dx = e.clientX - dragStart.x;
+  const dy = e.clientY - dragStart.y;
+  if (Math.hypot(dx, dy) < 22) return;
+
+  let tr = dragStart.r;
+  let tc = dragStart.c;
+  if (Math.abs(dx) > Math.abs(dy)) tc += dx > 0 ? 1 : -1;
+  else tr += dy > 0 ? 1 : -1;
+
+  const sr = dragStart.r;
+  const sc = dragStart.c;
+  dragStart = null;
+
+  if (tr >= 0 && tr < SIZE && tc >= 0 && tc < SIZE) {
+    attemptSwap(sr, sc, tr, tc);
+  }
+});
+
+window.addEventListener('pointerup', () => { dragStart = null; });
+
+async function animateSwap(r1, c1, r2, c2) {
+  const cells = document.querySelectorAll('.cell');
+  const t1 = cells[r1 * SIZE + c1]?.querySelector('.tile');
+  const t2 = cells[r2 * SIZE + c2]?.querySelector('.tile');
+  const dx = (c2 - c1) * 105;
+  const dy = (r2 - r1) * 105;
+  if (t1) t1.style.transform = `translate(${dx}%, ${dy}%)`;
+  if (t2) t2.style.transform = `translate(${-dx}%, ${-dy}%)`;
+  await new Promise(res => setTimeout(res, 180));
+}
+
+async function attemptSwap(r1, c1, r2, c2) {
+  busy = true;
+  await animateSwap(r1, c1, r2, c2);
+
+  const a = grid[r1][c1];
+  const b = grid[r2][c2];
+  grid[r1][c1] = b;
+  grid[r2][c2] = a;
+  renderBoard();
+
+  const isDirHorizontal = (r1 === r2);
+
+  // Ativação manual de Boosters ao deslizar!
+  if (a?.special && a.special !== 'cherry') {
+    moves--;
+    await activateBooster(r2, c2, a, b);
+    await resolveCascades();
+    finishTurn();
+    return;
+  }
+  if (b?.special && b.special !== 'cherry') {
+    moves--;
+    await activateBooster(r1, c1, b, a);
+    await resolveCascades();
+    finishTurn();
+    return;
+  }
+
+  const matches = findAllMatches();
+  if (matches.length === 0) {
+    playTone(180, 'sawtooth', 0.14);
+    await animateSwap(r1, c1, r2, c2);
+    grid[r1][c1] = a;
+    grid[r2][c2] = b;
+    renderBoard();
+    busy = false;
+    return;
+  }
+
+  moves--;
+  await processMatches(matches, { r: r2, c: c2, horizontal: isDirHorizontal });
+  await resolveCascades();
+  finishTurn();
+}
+
+/* ==========================================================================
+   8. DETECÇÃO DE PADRÕES (4 LINHA, QUADRADO, CRUZ 6+, 5 LINHA) E DETONAÇÕES
+   ========================================================================== */
+function findAllMatches() {
+  const groups = [];
+  const visitedH = Array.from({ length: SIZE }, () => Array(SIZE).fill(false));
+  const visitedV = Array.from({ length: SIZE }, () => Array(SIZE).fill(false));
+
+  // Horizontais
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE - 2; c++) {
+      const color = grid[r][c]?.color;
+      if (color == null || color < 0 || visitedH[r][c]) continue;
+      let len = 1;
+      while (c + len < SIZE && grid[r][c + len]?.color === color) len++;
+      if (len >= 3) {
+        const cells = [];
+        for (let k = 0; k < len; k++) { visitedH[r][c+k] = true; cells.push({ r, c: c+k }); }
+        groups.push({ type: 'H', color, cells });
+      }
+    }
+  }
+
+  // Verticais
+  for (let c = 0; c < SIZE; c++) {
+    for (let r = 0; r < SIZE - 2; r++) {
+      const color = grid[r][c]?.color;
+      if (color == null || color < 0 || visitedV[r][c]) continue;
+      let len = 1;
+      while (r + len < SIZE && grid[r + len][c]?.color === color) len++;
+      if (len >= 3) {
+        const cells = [];
+        for (let k = 0; k < len; k++) { visitedV[r+k][c] = true; cells.push({ r: r+k, c }); }
+        groups.push({ type: 'V', color, cells });
+      }
+    }
+  }
+
+  // Quadrados 2x2
+  for (let r = 0; r < SIZE - 1; r++) {
+    for (let c = 0; c < SIZE - 1; c++) {
+      const color = grid[r][c]?.color;
+      if (color == null || color < 0) continue;
+      if (grid[r][c+1]?.color === color && grid[r+1][c]?.color === color && grid[r+1][c+1]?.color === color) {
+        groups.push({
+          type: 'SQ',
+          color,
+          cells: [{ r, c }, { r, c: c+1 }, { r: r+1, c }, { r: r+1, c: c+1 }]
+        });
+      }
+    }
+  }
+
+  return groups;
+}
+
+async function processMatches(groups, swapHint = null) {
+  const toDestroy = new Set();
+  const boostersToSpawn = [];
+
+  // Verificar interseções (Cruz / T / L com 6+ peças)
+  const merged = [];
+  const used = new Array(groups.length).fill(false);
+
+  for (let i = 0; i < groups.length; i++) {
+    if (used[i]) continue;
+    let combined = [...groups[i].cells];
+    let types = [groups[i].type];
+    const color = groups[i].color;
+    used[i] = true;
+
+    for (let j = i + 1; j < groups.length; j++) {
+      if (used[j] || groups[j].color !== color) continue;
+      const overlap = groups[j].cells.some(a => combined.some(b => b.r === a.r && b.c === a.c));
+      if (overlap) {
+        used[j] = true;
+        types.push(groups[j].type);
+        groups[j].cells.forEach(cell => {
+          if (!combined.some(x => x.r === cell.r && x.c === cell.c)) combined.push(cell);
+        });
+      }
+    }
+    merged.push({ color, cells: combined, types });
+  }
+
+  for (const m of merged) {
+    let specialType = null;
+    if (m.cells.length >= 6 && m.types.includes('H') && m.types.includes('V')) {
+      specialType = 'cross';
+    } else if (m.cells.length >= 5 && (m.types.includes('H') || m.types.includes('V'))) {
+      specialType = 'joker';
+    } else if (m.types.includes('SQ')) {
+      specialType = 'bomb';
+    } else if (m.cells.length === 4) {
+      specialType = (swapHint ? swapHint.horizontal : m.types[0] === 'H') ? 'arrow_h' : 'arrow_v';
+    }
+
+    let spawnPos = m.cells[0];
+    if (swapHint && m.cells.some(p => p.r === swapHint.r && p.c === swapHint.c)) {
+      spawnPos = { r: swapHint.r, c: swapHint.c };
+    }
+
+    for (const cell of m.cells) {
+      toDestroy.add(`${cell.r},${cell.c}`);
+    }
+
+    if (specialType) {
+      boostersToSpawn.push({ r: spawnPos.r, c: spawnPos.c, color: m.color, special: specialType });
+      addMissionProgress('m2', 1);
+    }
+  }
+
+  // Detonar células marcadas (mantendo intacta a posição onde o booster vai surgir)
+  for (const key of toDestroy) {
+    const [r, c] = key.split(',').map(Number);
+    const isSpawnSpot = boostersToSpawn.some(b => b.r === r && b.c === c);
+    if (!isSpawnSpot) {
+      await destroyCell(r, c);
+    }
+  }
+
+  // Criar os boosters no tabuleiro (eles ficam parados aguardando o jogador detonar!)
+  for (const b of boostersToSpawn) {
+    grid[b.r][b.c] = { color: b.color, special: b.special };
+    damageIce(b.r, b.c);
+    spawnParticles(b.r, b.c, '#ffffff', 16);
+    playTone(620, 'triangle', 0.2);
+  }
+
+  renderBoard();
+  updateHUD();
+  await new Promise(res => setTimeout(res, 160));
+}
+
+async function destroyCell(r, c, chain = true) {
+  const tile = grid[r][c];
+  damageIce(r, c);
+  if (!tile || tile.special === 'cherry') return;
+
+  grid[r][c] = null;
+  score += 35;
+  addMissionProgress('m1', 1);
+  addMissionProgress('m3', 35);
+  spawnParticles(r, c, tile.color >= 0 ? COLORS[tile.color] : '#ffd166', 8);
+  playTone(340 + Math.random() * 180, 'sine', 0.09);
+
+  // Reação em cadeia se atingir outro booster no tabuleiro!
+  if (chain && tile.special) {
+    await activateBooster(r, c, tile, null);
+  }
+}
+
+function damageIce(r, c) {
+  if (iceGrid[r][c] > 0) {
+    iceGrid[r][c]--;
+    score += 50;
+    spawnParticles(r, c, '#82e0ff', 10);
+  }
+}
+
+async function activateBooster(r, c, booster, swappedTile) {
+  grid[r][c] = null;
+  addMissionProgress('m2', 1);
+  playTone(140, 'sawtooth', 0.28, 0.2);
+
+  if (booster.special === 'arrow_h') {
+    for (let col = 0; col < SIZE; col++) await destroyCell(r, col);
+  } else if (booster.special === 'arrow_v') {
+    for (let row = 0; row < SIZE; row++) await destroyCell(row, c);
+  } else if (booster.special === 'bomb') {
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE) await destroyCell(nr, nc);
+      }
+    }
+  } else if (booster.special === 'cross') {
+    for (let row = 0; row < SIZE; row++) {
+      for (let col = 0; col < SIZE; col++) await destroyCell(row, col);
+    }
+  } else if (booster.special === 'joker') {
+    const targetColor = (swappedTile && swappedTile.color >= 0)
+      ? swappedTile.color
+      : Math.floor(Math.random() * COLORS.length);
+    for (let row = 0; row < SIZE; row++) {
+      for (let col = 0; col < SIZE; col++) {
+        if (grid[row][col]?.color === targetColor) await destroyCell(row, col);
+      }
+    }
+  }
+  renderBoard();
+  updateHUD();
+}
+
+/* ==========================================================================
+   9. GRAVIDADE, COLETA DE CEREJAS E CASCATAS
+   ========================================================================== */
+async function resolveCascades() {
+  while (true) {
+    applyGravity();
+    checkCherryCollection();
+    renderBoard();
+    updateHUD();
+    await new Promise(res => setTimeout(res, 170));
+
+    const nextMatches = findAllMatches();
+    if (nextMatches.length === 0) break;
+    await processMatches(nextMatches);
+  }
+}
+
+function applyGravity() {
+  for (let c = 0; c < SIZE; c++) {
+    let writeRow = SIZE - 1;
+    for (let r = SIZE - 1; r >= 0; r--) {
+      if (grid[r][c] !== null) {
+        grid[writeRow][c] = grid[r][c];
+        if (writeRow !== r) grid[r][c] = null;
+        writeRow--;
+      }
+    }
+    for (let r = writeRow; r >= 0; r--) {
+      grid[r][c] = { color: Math.floor(Math.random() * COLORS.length), special: null };
+    }
+  }
+}
+
+function checkCherryCollection() {
+  for (let c = 0; c < SIZE; c++) {
+    if (grid[SIZE - 1][c]?.special === 'cherry') {
+      grid[SIZE - 1][c] = null;
+      collectedCherries++;
+      score += 300;
+      spawnParticles(SIZE - 1, c, '#ffd166', 22);
+      playTone(780, 'triangle', 0.25);
+      applyGravity();
+    }
+  }
+}
+
+/* ==========================================================================
+   10. FERRAMENTAS INFERIORES (MARTELO E EMBARALHAR)
+   ========================================================================== */
+function toggleHammer() {
+  if (saveData.hammers <= 0) {
+    triggerRewardedAd(() => { saveData.hammers += 2; persist(); });
+    return;
+  }
+  hammerActive = !hammerActive;
+  document.getElementById('btn-hammer').classList.toggle('active', hammerActive);
+}
+
+async function useHammerAt(r, c) {
+  if (saveData.hammers <= 0) return;
+  saveData.hammers--;
+  hammerActive = false;
+  document.getElementById('btn-hammer').classList.remove('active');
+  persist();
+  busy = true;
+  await destroyCell(r, c);
+  await resolveCascades();
+  finishTurn();
+}
+
+function shuffleBoard() {
+  if (busy) return;
+  if (saveData.shuffles <= 0) {
+    triggerRewardedAd(() => { saveData.shuffles += 2; persist(); });
+    return;
+  }
+  saveData.shuffles--;
+  persist();
+  const flat = grid.flat().filter(t => t && t.special !== 'cherry');
+  for (let i = flat.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [flat[i], flat[j]] = [flat[j], flat[i]];
+  }
+  let idx = 0;
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (grid[r][c]?.special !== 'cherry') grid[r][c] = flat[idx++];
+    }
+  }
+  renderBoard();
+}
+
+/* ==========================================================================
+   11. FIM DE TURNO E MODAIS DE NAVEGAÇÃO
+   ========================================================================== */
+function finishTurn() {
+  busy = false;
+  updateHUD();
+  const remainingIce = iceGrid.flat().filter(v => v > 0).length;
+  const won = score >= targetScore && remainingIce === 0 && collectedCherries >= targetCherries;
+
+  if (won) {
+    saveData.unlockedLevel = Math.max(saveData.unlockedLevel, level + 1);
+    persist();
+    showEndModal(true);
+  } else if (moves <= 0) {
+    showEndModal(false);
+  }
+}
+
+function showEndModal(won) {
+  const modal = document.getElementById('modal-end');
+  const title = document.getElementById('end-title');
+  const desc = document.getElementById('end-desc');
+  const primaryBtn = document.getElementById('end-primary-btn');
+  const adBtn = document.getElementById('end-ad-btn');
+
+  if (won) {
+    title.textContent = `🎉 Nível ${level} Concluído!`;
+    desc.textContent = `Pontuação final: ${score} pontos!`;
+    primaryBtn.textContent = `Próximo Nível (${level + 1})`;
+    adBtn.style.display = 'none';
+    primaryBtn.onclick = () => {
+      modal.classList.remove('open');
+      triggerInterstitialAd(() => {
+        level++;
+        openPreGame();
+      });
+    };
+  } else {
+    title.textContent = '😢 Fim das Jogadas';
+    desc.textContent = 'Assista a um vídeo curto para ganhar +5 jogadas e continuar de onde parou!';
+    primaryBtn.textContent = 'Tentar Novamente';
+    adBtn.style.display = 'block';
+    adBtn.onclick = () => {
+      triggerRewardedAd(() => {
+        modal.classList.remove('open');
+        moves += 5;
+        updateHUD();
+      });
+    };
+    primaryBtn.onclick = () => {
+      modal.classList.remove('open');
+      initLevel(level);
+    };
+  }
+  modal.classList.add('open');
+}
+
+function closeModals() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+}
+
+function openMenu() {
+  closeModals();
+  persist();
+  document.getElementById('modal-menu').classList.add('open');
+}
+
+function openPreGame() {
+  closeModals();
+  selectedPreBooster = null;
+  const list = document.getElementById('pregame-list');
+  const names = { arrow_h: '🏹 Flecha', bomb: '💣 Bomba 3x3', cross: '💥 Mega Cruz', joker: '🌟 Coringa' };
+  list.innerHTML = '';
+
+  Object.keys(names).forEach(key => {
+    const qty = saveData.inventory[key] || 0;
+    const card = document.createElement('div');
+    card.className = 'pick-card';
+    card.innerHTML = `${names[key]}<br><small>Disponível: ${qty}</small>`;
+    card.onclick = () => {
+      if (qty <= 0) return;
+      document.querySelectorAll('.pick-card').forEach(el => el.classList.remove('selected'));
+      if (selectedPreBooster === key) {
+        selectedPreBooster = null;
+      } else {
+        selectedPreBooster = key;
+        card.classList.add('selected');
+      }
+    };
+    list.appendChild(card);
+  });
+  document.getElementById('modal-pregame').classList.add('open');
+}
+
+function startSelectedLevel() {
+  closeModals();
+  initLevel(level);
+}
+
+function openMissions() {
+  closeModals();
+  const list = document.getElementById('missions-list');
+  list.innerHTML = '';
+  saveData.missions.forEach(m => {
+    const done = m.progress >= m.goal;
+    const row = document.createElement('div');
+    row.className = 'mission-row';
+    row.innerHTML = `
+      <div>
+        <strong>${m.desc}</strong><br>
+        <small>${m.progress}/${m.goal} • Prêmio: ${m.rewardName}</small>
+      </div>
+      <button class="icon-btn" style="background:${m.claimed ? '#374151' : done ? 'var(--green)' : '#4b5563'}"
+        ${(!done || m.claimed) ? 'disabled' : ''}
+        onclick="claimMission('${m.id}')">
+        ${m.claimed ? 'Resgatado' : done ? 'Resgatar' : 'Em curso'}
+      </button>
+    `;
+    list.appendChild(row);
+  });
+  document.getElementById('modal-missions').classList.add('open');
+}
+
+function claimMission(id) {
+  const m = saveData.missions.find(x => x.id === id);
+  if (m && m.progress >= m.goal && !m.claimed) {
+    m.claimed = true;
+    saveData.inventory[m.reward] = (saveData.inventory[m.reward] || 0) + 1;
+    persist();
+    openMissions();
+    playTone(750, 'triangle', 0.25);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  persist();
+  initRealAdMob();
+});
+</script>
+</body>
+</html>
